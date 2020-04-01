@@ -22,6 +22,7 @@ class PolygonDrawer:
 
     def drawPoly(self):
         cv2.namedWindow("Polygon Mask")
+        cv2.moveWindow("Polygon Mask", 100, 100)
         cv2.setMouseCallback("Polygon Mask", self.on_mouse)
 
         while not self.done:
