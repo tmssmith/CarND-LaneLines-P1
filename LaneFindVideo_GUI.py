@@ -1,11 +1,10 @@
+import os
+import argparse
+import cv2
 import numpy as np
 import numpy.polynomial.polynomial as poly
-import cv2
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import argparse
-import os
-
 
 class LaneFindVideoGUI:
     def __init__(self):
@@ -14,45 +13,61 @@ class LaneFindVideoGUI:
         self.kernel = 5
         self.low = 50
         self.high = 150
-
         self.rho = 2
         self.theta_bar = 1
         self.theta = self.theta_bar * (np.pi / 180)
         self.threshold = 10
         self.min_line_len = 30
         self.max_line_gap = 10
-
         self.image_selector = 0
         self.alpha = 0.5
         self.beta = 1 - self.alpha
         self.gamma = 0
 
     def find_lanes(self, img):
-        self.img_orig = img
-        self.img_shape = self.img_orig.shape
-        self.height = self.img_shape[0]
-        self.width = self.img_shape[1]
-
+        self.get_img(img)
         self.trackbars()
+        self.color_detection()
         self.canny_edges()
+        self.img_comb = cv2.bitwise_or(self.img_colorMask, self.img_canny)
         self.apply_mask()
         self.hough_transform()
         self.fit_lane_lines()
-        self.render()
-        return self.img_final
+        return self.render()
+
+    def get_img(self, img):
+        self.img_bgr = img
+        self.img_shape = self.img_bgr.shape
+        self.height = self.img_shape[0]
+        self.width = self.img_shape[1]
+
+    def color_detection(self):
+        img_hls = cv2.cvtColor(self.img_bgr, cv2.COLOR_BGR2HLS)
+
+        # Threshold values below found using color_detection.py
+        lo_thr_wh = np.array([0, 200, 60])
+        hi_thr_wh = np.array([180, 255, 255])
+        lo_thr_yl = np.array([5, 40, 90])
+        hi_thr_yl = np.array([90, 255, 255])
+
+        img_msk_wh = cv2.inRange(img_hls, lo_thr_wh, hi_thr_wh)
+        img_msk_yl = cv2.inRange(img_hls, lo_thr_yl, hi_thr_yl)
+        self.img_colorMask = cv2.bitwise_or(img_msk_wh, img_msk_yl)
 
     def canny_edges(self):
-        self.img_gray = cv2.cvtColor(self.img_orig, cv2.COLOR_BGR2GRAY)
-        self.img_gaus = cv2.GaussianBlur(self.img_gray, (self.kernel, self.kernel), 0)
+        self.img_gray = cv2.cvtColor(self.img_bgr, cv2.COLOR_BGR2GRAY)
+        self.img_gaus = cv2.GaussianBlur(self.img_gray, \
+            (self.kernel, self.kernel), 0)
         self.img_canny = cv2.Canny(self.img_gaus, self.low, self.high)
 
     def apply_mask(self):
-        self.img_mask = self.mask(self.img_canny)
-        self.img_roi = cv2.bitwise_and(self.img_canny, self.img_mask)
+        self.img_mask = self.mask(self.img_comb)
+        self.img_roi = cv2.bitwise_and(self.img_comb, self.img_mask)
         self.img_mask = cv2.cvtColor(self.img_mask, cv2.COLOR_GRAY2BGR)
 
     def hough_transform(self):
-        self.hough_lines = cv2.HoughLinesP(self.img_roi, self.rho, self.theta, self.threshold, np.array ([ ]), self.min_line_len, self.max_line_gap)
+        self.hough_lines = cv2.HoughLinesP(self.img_roi, self.rho, self.theta, \
+            self.threshold, np.array ([]), self.min_line_len, self.max_line_gap)
         self.img_hough = canvas(self.img_shape)
         if self.hough_lines is not None:
             self.img_hough = draw_lines(self.img_hough, self.hough_lines)
@@ -62,17 +77,21 @@ class LaneFindVideoGUI:
     def fit_lane_lines(self):
         self.img_best_fit = canvas(self.img_shape)
         if self.hough_lines is not None:
-            self.img_best_fit = self.best_fit_lines(self.img_best_fit, self.hough_lines)
+            self.img_best_fit = self.best_fit_lines(self.img_best_fit, \
+                self.hough_lines)
 
     def render(self):
-        self.image_list = (self.img_orig, self.img_gaus, self.img_canny, self.img_hough)
+        self.image_list = (self.img_bgr, self.img_canny, self.img_colorMask, \
+            self.img_comb, self.img_hough)
         self.base_image = self.image_list[self.image_selector]
 
         if len(self.base_image.shape) == 2:
             self.base_image = cv2.cvtColor(self.base_image, cv2.COLOR_GRAY2BGR)
-
-        self.img_masked = cv2.addWeighted(self.base_image, self.alpha, self.img_mask, self.beta, self.gamma)
-        self.img_final = cv2.addWeighted(self.img_masked, self.alpha, self.img_best_fit, self.beta, self.gamma)
+        self.img_masked = cv2.addWeighted(self.base_image, self.alpha, \
+            self.img_mask, self.beta, self.gamma)
+        self.img_final = cv2.addWeighted(self.img_masked, self.alpha, \
+            self.img_best_fit, self.beta, self.gamma)
+        return self.img_final
 
     def mask(self, image):
         """
@@ -108,8 +127,6 @@ class LaneFindVideoGUI:
         img = draw_lines(img, [left_best_fit])
         img = draw_lines(img, [right_best_fit])
 
-        # img = cv2.polylines(img, np.int32([left_best_fit]), False, (0,0,255), 2)
-        # img = cv2.polylines(img, np.int32([right_best_fit]), False, (0,0,255), 2)
         return img
 
     def fit_line(self, points):
@@ -125,35 +142,6 @@ class LaneFindVideoGUI:
             return np.array([[x1,y1,x2,y2]], np.int32)
         else:
             return np.empty((1,4), np.int32)
-
-    # def fit_line(self, points):
-    #     x = points[0]
-    #     y = points[1]
-    #
-    #     if x and y:
-    #
-    #         coefs = poly.polyfit(x, y, 2)
-    #         x = np.arange(0, self.width, 5)
-    #         print(x.shape)
-    #         y = poly.polyval(x, coefs)
-    #         print(y.shape)
-    #         pts = np.column_stack((x,y))
-    #         print(pts.shape)
-    #         return pts
-    #     else:
-    #         return np.empty((1,2), np.int32)
-    #         # Find x1, x2 at y1 and y2
-    #         # Plot y for x in range x1 and x2
-    #         # Use CV Polylines
-    #
-    #
-        #     y1 = self.roi_top
-        #     x1 = int((y1 - b) / m)
-        #     y2 = self.roi_bottom
-        #     x2 = int((y2 - b) / m)
-        #     return np.array([[x1,y1,x2,y2]], np.int32)
-        # else:
-        #     return np.empty((1,4), np.int32)
 
     def trackbars(self):
         if self.flag != True:
@@ -180,7 +168,7 @@ class LaneFindVideoGUI:
             cv2.createTrackbar('Threshold', 'Parameters', self.threshold, 100, self.onChange_threshold)
             cv2.createTrackbar('Min Line Len', 'Parameters', self.min_line_len, 100, self.onChange_minlinelen)
             cv2.createTrackbar('Max Line Gap', 'Parameters', self.max_line_gap, 100, self.onChange_maxlinegap)
-            cv2.createTrackbar('Base Image', 'Parameters', self.image_selector, 3, self.onChange_baseimage)
+            cv2.createTrackbar('Base Image', 'Parameters', self.image_selector, 4, self.onChange_baseimage)
             cv2.createTrackbar('Overlay Ratio', 'Parameters', int(self.alpha*100), 100, self.onChange_alpha)
             cv2.createTrackbar('Image Gamma', 'Parameters', int(self.gamma), 255, self.onChange_gamma)
             self.flag = True
@@ -294,6 +282,7 @@ def draw_lines(img, lines, color=[0, 0, 255], thickness=2):
     for line in lines:
         for x1,y1,x2,y2 in line:
             cv2.line(img, (x1, y1), (x2, y2), color, thickness)
+
     return img
 
 def main():
@@ -302,35 +291,30 @@ def main():
     args = parser.parse_args()
     filename = os.path.basename(args.file)
     extension = os.path.splitext(args.file)[1]
+
     if extension == '.jpg':
-        [imagename, fileext] = filename.split(".", 1)
         img = cv2.imread(args.file)
-        cv2.namedWindow(filename)
-        cv2.moveWindow(filename, 100,100)
-        gui = LaneFindVideoGUI()
-
-        while True:
-            img_lanes = gui.find_lanes(img)
-            cv2.imshow(filename, img_lanes)
-            if cv2.waitKey(40) & 0xFF == ord('q'):
-                break
-
+        if img is not None:
+            cv2.namedWindow(filename)
+            cv2.moveWindow(filename, 100,100)
+            gui = LaneFindVideoGUI()
+            while True:
+                img_lanes = gui.find_lanes(img)
+                cv2.imshow(filename, img_lanes)
+                if cv2.waitKey(40) & 0xFF == ord('q'):
+                    break
+        else:
+            print("Error opening image")
     elif extension == '.mp4':
         cap = cv2.VideoCapture(args.file)
-
         if cap.isOpened() == False:
             print("Error opening video")
-
         frm_rt = cap.get(cv2.CAP_PROP_FPS)      # Get frame rate
         frm_dur = int(1000 / frm_rt)
-
         cv2.namedWindow(filename)
         cv2.moveWindow(filename, 100,100)
-
         gui = LaneFindVideoGUI()
-
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
         while cap.isOpened():
             ret, frame = cap.read()
             if ret == True:
@@ -340,9 +324,7 @@ def main():
                     break
             else:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
         cap.release()
-
     else:
         "Filetype must be *.jpg or *.mp4"
 
