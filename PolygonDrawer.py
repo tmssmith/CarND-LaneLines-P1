@@ -64,7 +64,6 @@ class PolygonDrawer:
         cv2.fillPoly(mask, np.array([self.vertices]), ignore_mask_color)
 
         #returning the image only where mask pixels are nonzero
-        masked_image = cv2.bitwise_and(self.image, mask)
         return masked_image
 
 if __name__ == "__main__":
