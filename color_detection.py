@@ -3,9 +3,6 @@ import argparse
 import cv2
 import numpy as np
 
-def callback(value):
-    pass
-
 def initTrackbars():
     cv2.namedWindow('Trackbars')
     cv2.createTrackbar('H lower W', 'Trackbars', 0, 180, callback)
@@ -20,6 +17,9 @@ def initTrackbars():
     cv2.createTrackbar('L upper Y', 'Trackbars', 255, 255, callback)
     cv2.createTrackbar('S lower Y', 'Trackbars', 0, 255, callback)
     cv2.createTrackbar('S upper Y', 'Trackbars', 255, 255, callback)
+
+def callback(value):
+    pass
 
 def color_detection(img):
     w_h_lo = cv2.getTrackbarPos('H lower W', 'Trackbars')

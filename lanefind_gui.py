@@ -8,7 +8,6 @@ import matplotlib.image as mpimg
 
 class LaneFindVideoGUI:
     def __init__(self):
-
         self.flag = False
         self.kernel = 5
         self.low = 50
@@ -42,7 +41,6 @@ class LaneFindVideoGUI:
 
     def color_detection(self):
         img_hls = cv2.cvtColor(self.img_bgr, cv2.COLOR_BGR2HLS)
-
         # Threshold values below found using color_detection.py
         lo_thr_wh = np.array([0, 200, 60])
         hi_thr_wh = np.array([180, 255, 255])
@@ -83,7 +81,6 @@ class LaneFindVideoGUI:
         self.image_list = (self.img_bgr, self.img_canny, self.img_colorMask, \
             self.img_comb, self.img_hough)
         self.base_image = self.image_list[self.image_selector]
-
         if len(self.base_image.shape) == 2:
             self.base_image = cv2.cvtColor(self.base_image, cv2.COLOR_GRAY2BGR)
         self.img_masked = cv2.addWeighted(self.base_image, self.alpha, \
@@ -168,7 +165,6 @@ class LaneFindVideoGUI:
     #
     #     else:
     #         return np.empty((1,2), np.int32)
-
 
     def trackbars(self):
         if self.flag != True:
