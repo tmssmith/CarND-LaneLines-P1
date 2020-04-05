@@ -21,8 +21,7 @@ class LaneFindVideoGUI:
         self.max_line_gap = 10
         self.image_selector = 0
         self.alpha = 0.5
-        self.beta = 1 - self.alpha
-        self.gamma = 0
+        self.beta = 0.5
 
     def find_lanes(self, img):
         self.get_img(img)
@@ -88,9 +87,9 @@ class LaneFindVideoGUI:
         if len(self.base_image.shape) == 2:
             self.base_image = cv2.cvtColor(self.base_image, cv2.COLOR_GRAY2BGR)
         self.img_masked = cv2.addWeighted(self.base_image, self.alpha, \
-            self.img_mask, self.beta, self.gamma)
+            self.img_mask, self.beta, 0)
         self.img_final = cv2.addWeighted(self.img_masked, self.alpha, \
-            self.img_best_fit, self.beta, self.gamma)
+            self.img_best_fit, self.beta, 0)
         return self.img_final
 
     def mask(self, image):
@@ -143,6 +142,34 @@ class LaneFindVideoGUI:
         else:
             return np.empty((1,4), np.int32)
 
+##### THIS IS AN ATTEMPT TO FIT CURVED LINES - IT DOESN'T WORK VERY WELL
+    # def best_fit_lines(self, img, lines):
+    #     (left_lines, right_lines) = separate_lines(lines)
+    #
+    #     left_points = get_points(left_lines)
+    #     right_points = get_points(right_lines)
+    #     left_best_fit = self.fit_line(left_points)
+    #     right_best_fit = self.fit_line(right_points)
+    #     img = cv2.polylines(img, [left_best_fit], 0, (255,0,0), 2)
+    #     img =  cv2.polylines(img, [right_best_fit], 0, (255,0,0), 2)
+    #     return img
+
+    # def fit_line(self, points):
+    #     x = points[0]
+    #     y = points[1]
+    #
+    #     if x and y:
+    #         coeffs = poly.polyfit(x, y, 2)
+    #         x_axis = np.arange(0, self.width, 5)
+    #         y = poly.polyval(x_axis, coeffs)
+    #         pts = np.column_stack((x_axis, y))
+    #         pts = np.int32(pts)
+    #         return pts
+    #
+    #     else:
+    #         return np.empty((1,2), np.int32)
+
+
     def trackbars(self):
         if self.flag != True:
             self.roi_top = 10
@@ -169,8 +196,8 @@ class LaneFindVideoGUI:
             cv2.createTrackbar('Min Line Len', 'Parameters', self.min_line_len, 100, self.onChange_minlinelen)
             cv2.createTrackbar('Max Line Gap', 'Parameters', self.max_line_gap, 100, self.onChange_maxlinegap)
             cv2.createTrackbar('Base Image', 'Parameters', self.image_selector, 4, self.onChange_baseimage)
-            cv2.createTrackbar('Overlay Ratio', 'Parameters', int(self.alpha*100), 100, self.onChange_alpha)
-            cv2.createTrackbar('Image Gamma', 'Parameters', int(self.gamma), 255, self.onChange_gamma)
+            cv2.createTrackbar('Alpha', 'Parameters', int(self.alpha*100), 100, self.onChange_alpha)
+            cv2.createTrackbar('Beta', 'Parameters', int(self.beta), 100, self.onChange_beta)
             self.flag = True
     def onChange_kernel(self, value):
         value = max(1, value)
@@ -209,10 +236,9 @@ class LaneFindVideoGUI:
     def onChange_alpha(self, value):
         value = max(1, value)
         self.alpha = value / 100
-        self.beta = 1 - self.alpha
-    def onChange_gamma(self, value):
+    def onChange_beta(self, value):
         value = max(1, value)
-        self.gamma = value
+        self.beta = value / 100
     def onChange_roitop(self, value):
         if value >= self.roi_bottom:
             cv2.setTrackbarPos('ROI top', 'Parameters', self.roi_bottom)
@@ -260,11 +286,12 @@ def separate_lines(lines):
 
     for line in lines:
         for x1,y1,x2,y2 in line:
-            grad = (y2-y1)/(x2-x1)
-            if grad <= -0.5 and grad >= -1:
-                left_lines.append(line)
-            elif grad <= 1 and grad > 0.5:
-                right_lines.append(line)
+            if x1 != x2:
+                grad = (y2-y1)/(x2-x1)
+                if grad <= -0.5:
+                    left_lines.append(line)
+                elif grad >= 0.5:
+                    right_lines.append(line)
 
     return (left_lines, right_lines)
 
@@ -309,6 +336,7 @@ def main():
         cap = cv2.VideoCapture(args.file)
         if cap.isOpened() == False:
             print("Error opening video")
+            return
         frm_rt = cap.get(cv2.CAP_PROP_FPS)      # Get frame rate
         frm_dur = int(1000 / frm_rt)
         cv2.namedWindow(filename)
