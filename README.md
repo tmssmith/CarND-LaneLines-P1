@@ -1,7 +1,7 @@
 # **Finding Lane Lines on the Road** 
 Thomas Smith
 
-<img src="test_images_output/solidYellowCurve_overlay.jpg" width="480" alt="Combined Image" />
+<img src="test_images_output/solidYellowCurve2_overlay.jpg" width="480" alt="Combined Image" />
 
 
 This project, completed as part of the Udacity Self Driving Car Engineer NanoDegree, detects lane lines in images using Python and OpenCV.
