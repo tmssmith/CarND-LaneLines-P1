@@ -1,5 +1,4 @@
 # **Finding Lane Lines on the Road** 
-Thomas Smith
 
 <img src="test_images_output/solidYellowCurve2_overlay.jpg" width="480" alt="Combined Image" />
 
