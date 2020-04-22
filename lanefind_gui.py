@@ -350,7 +350,7 @@ def main():
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         cap.release()
     else:
-        "Filetype must be *.jpg or *.mp4"
+        print("Filetype must be *.jpg or *.mp4")
 
     cv2.destroyAllWindows()
 
